@@ -1,0 +1,309 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package minesweeper;
+
+import java.awt.*;
+import static java.awt.Color.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import javax.swing.*;
+import static javax.swing.text.StyleConstants.setBackground;
+
+/**
+ *
+ * @author Owner
+ */
+public class Minesweeper extends JFrame
+{
+
+    boolean gamePlaying = false;
+    GamePanel mainPanel;
+    int size = 10;
+    Box[][] Boxes = new Box[size][size];
+    Highscores hs = new Highscores();
+    public Minesweeper() {
+        
+        mainPanel = new GamePanel();
+        mainPanel.newgame();
+        JPanel bottomPanel = new JPanel();
+        JButton game = new JButton("new game");
+        game.addActionListener(new ActionListener()
+        {
+            public void actionPerformed(ActionEvent e) {
+                mainPanel.newgame();
+            }
+        });
+         JButton hsBtn = new JButton("Veiw HS");
+        hsBtn.addActionListener(new ActionListener()
+        {
+            public void actionPerformed(ActionEvent e) {
+                JOptionPane.showMessageDialog(mainPanel, hs, "High Scores", JOptionPane.INFORMATION_MESSAGE);
+            }
+        });
+        mainPanel.setLayout(new GridLayout(size, size));
+        bottomPanel.add(game);
+        bottomPanel.add(hsBtn);
+        add(bottomPanel, BorderLayout.PAGE_END);
+        add(mainPanel, BorderLayout.CENTER);
+        setSize(mainPanel.size * 40, mainPanel.size * 30);
+        setResizable(true);
+        setVisible(true);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+    }
+
+    public class GamePanel extends JPanel
+    {
+
+        boolean won = false;
+        boolean isOver = false;
+        int size = 10;
+//        
+        int bombs = 10;
+        int boxesLeft = (size * size) - bombs;
+        int bombsLeft = bombs;
+        boolean firstgame = true;
+        long start = 0;
+        long end = 0;
+
+        public void newgame() {
+            start = System.currentTimeMillis();
+
+            isOver = false;
+            won = false;
+
+            boxesLeft = (size * size) - bombs;
+            bombsLeft = bombs;
+
+            if (firstgame) {
+                firstgame = false;
+                for (int i = 0; i < size; i++) {
+                    for (int j = 0; j < size; j++) {
+                        Box box = new Box(i, j);
+
+                        Boxes[i][j] = box;
+
+                        box.reset();
+                        MouseAdapter rightClick = new MouseAdapter()
+                        {
+//                        @Override
+                            public void mousePressed(MouseEvent e) {
+
+                                if (!isOver) {
+                                    if (!box.isFlagged) {
+                                        if (e.getButton() == 1) {
+                                            if (box.isBomb) {
+                                                end = System.currentTimeMillis();
+                                                gameover();
+                                                box.setOpaque(true);
+                                                box.setBackground(red);
+
+                                            } else {
+                                                if (box.adjacent > 0) {
+                                                    expose(box);
+                                                } else {
+                                                    blankClicked(box);
+                                                }
+                                                if (boxesLeft == 0 && bombsLeft == 0) {
+                                                    won = true;
+                                                    end = System.currentTimeMillis();
+                                                    gameover();
+
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        };
+                        MouseAdapter lefttClick = new MouseAdapter()
+                        {
+                            @Override
+                            public void mousePressed(MouseEvent e) {
+                                if (!isOver) {
+                                    if (!box.visible) {
+                                        if (e.getButton() == 3) {
+                                            if (!box.isFlagged) {
+                                                flag(box);
+                                                if ( bombsLeft == 0) {
+                                                    won = true;
+                                                    end = System.currentTimeMillis();
+                                                    gameover();
+
+                                                }
+                                            } else {
+                                                deflag(box);
+                                            }
+
+                                        }
+                                    }
+                                }
+                            }
+                        };
+                        box.addMouseListener(rightClick);
+                        box.addMouseListener(lefttClick);
+                        add(box);
+                    }
+                }
+            } else {
+                for (int i = 0; i < size; i++) {
+                    for (int j = 0; j < size; j++) {
+                        Boxes[i][j].reset();
+                    }
+                }
+            }
+            for (int i = 0; i < bombs; i++) {
+                while (true) {
+                    int row = (int) (Math.random() * size);
+                    int column = (int) (Math.random() * size);
+                    if (Boxes[row][column].isBomb == false) {
+                        Boxes[row][column].isBomb = true;
+                        for (int j = row - 1; j < row + 2; j++) {
+                            if (j >= 0 && j < size) {
+                                for (int k = column - 1; k < column + 2; k++) {
+                                    if (k >= 0 && k < size) {
+                                        Boxes[j][k].adjacent++;
+                                    }
+                                }
+                            }
+
+                        }
+
+                        break;
+                    }
+                }
+            }
+        }
+
+        public void blankClicked(Box box) {
+            int row = box.row;
+            int column = box.column;
+            if (!box.visible) {
+                expose(box);
+                for (int i = row - 1; i < row + 2; i++) {
+                    if (i >= 0 && i < size) {
+                        for (int j = column - 1; j < column + 2; j++) {
+                            if (j >= 0 && j < size) {
+                                Box temp = Boxes[i][j];
+                                if (!temp.visible) {
+                                    if (temp.adjacent > 0) {
+                                        expose(temp);
+                                    } else {
+                                        blankClicked(temp);
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+
+        public void gameover() {
+            isOver = true;
+            String winner = "lost ";
+            int time=(int)((end-start)/1000);
+            if (won) {
+                winner = "won!! it took " + time + " seconds";
+                 if (hs.checkHS(time))
+                {
+                    String name = JOptionPane.showInputDialog(
+                            "You won! /n Your score of " + time + " is a High score, What is your name?", null);
+                    hs.add(name, time);
+                }
+            }
+            JOptionPane.showMessageDialog(this, "you " + winner, "Minesweeper", JOptionPane.INFORMATION_MESSAGE);
+
+            for (int i = 0; i < size; i++) {
+                for (int j = 0; j < size; j++) {
+                    Box temp = Boxes[i][j];
+                    if (temp.isBomb) {
+                        expose(temp);
+                    } else if (temp.isFlagged) {
+                        temp.setText("X");
+                    }
+                }
+
+            }
+        }
+
+        public void expose(Box box) {
+            box.visible = true;
+            box.setOpaque(false);
+            if (!isOver) {
+                boxesLeft--;
+            }
+            if (!box.isBomb) {
+                if (box.adjacent > 0) {
+                    box.setText(box.adjacent + "");
+                } else {
+                    box.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1));
+                }
+            } else {
+                box.setText("B!");
+            }
+        }
+
+        public void flag(Box box) {
+            box.isFlagged = true;
+            box.setText("F!");
+            if (box.isBomb) {
+                bombsLeft--;
+            }
+        }
+
+        public void deflag(Box box) {
+            box.isFlagged = false;
+            box.setText("");
+            if (box.isBomb) {
+                bombsLeft++;
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        new Minesweeper();
+
+    }
+
+    public class Box extends JLabel
+    {
+
+        int row = 0;
+        int column = 0;
+        boolean isBomb = false;
+        int adjacent = 0;
+        boolean visible = false;
+        boolean isFlagged = false;
+
+        public Box(int row, int column) {
+            this.row = row;
+            this.column = column;
+            setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1));
+            setOpaque(true);
+            setBackground(GRAY);
+        }
+
+        public void reset() {
+            setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1));
+            setOpaque(true);
+            setBackground(GRAY);
+            isBomb = false;
+            adjacent = 0;
+            visible = false;
+            isFlagged = false;
+            setText("");
+        }
+
+    }
+
+}
+
