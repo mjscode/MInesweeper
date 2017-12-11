@@ -1,2 +1,2 @@
 # MyProjects
-This contains my portfolio with projects i finished.
+This contains my portfolio with projects I finished.
